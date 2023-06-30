@@ -1,0 +1,138 @@
+
+ctype Tree where
+	Temp: Int -> Char -> Tree
+	Ct: Char -> Tree
+	Node: Tree -> Tree -> Tree -> Tree
+	It: Int->Tree
+
+
+
+--**calculating the frequencies of the characters in the given string and sorting**-----------------------------------------------------------------------------------------
+
+freq.[]=[]
+freq.(x::xs) = stofreq.(x::xs).x.0 :: freq.(remno.xs.x)
+
+stofreq.[].n.a = (a,n)
+stofreq.(x::xs).n.a = if x==n then stofreq.xs.n.(a+1) else stofreq.xs.n.a
+
+remno.[].n=[]
+remno.(x::xs).n = if x==n then remno.xs.n else x::remno.xs.n 
+
+sortfreq.(x::xs)=sort.(freq.(x::xs))
+
+
+
+--**converting frequency list into tree**----------------------------------------------------------------------------------------------------------------------------------
+
+------converting int and char to tree and forming a list of temporary trees-------
+
+tList.l = trList.(sortfreq.l)
+trList.[]=[]
+trList.((x,y)::xs) = Temp.x.y :: trList.xs 
+
+take2.l = take.2.(tList.l)
+drop2.l = drop.2.(tList.l)
+
+------temporary trees to main tree------ 
+ 
+totree.l = totree1.(take2.l)
+totree1.[Temp.x.y] = Ct.y
+totree1.[Temp.x.y,Temp.a.b] = Node.(It.(x+a)).(Ct.y).(Ct.b)
+totree1.[Temp.x.y,Node.(It.a).lt.rt] = Node.(It.(x+a)).(Ct.y).(Node.(It.a).lt.rt)
+totree2.[Temp.x.y,Node.(It.a).lt.rt] = Node.(It.(x+a)).(Node.(It.a).lt.rt).(Ct.y)
+
+jointree.[[],[Ct.x]] = Ct.x
+jointree.[[],[Node.(It.x).(Ct.y).(Ct.z)]] = Node.(It.x).(Ct.y).(Ct.z)
+jointree.[[Temp.a.c,Temp.b.d],[Node.(It.x).lt.rt]]= if (a+b)>=x then Node.(It.(a+b+x)).(Node.(It.a).lt.rt).(Node.(It.(a+b)).(Ct.c).(Ct.d)) else Node.(It.(a+b+x)).(Node.(It.(a+b)).(Ct.c).(Ct.d)).(Node.(It.a).lt.rt) 
+jointree.[((Temp.x.y)::xs),[Node.(It.a).lt.rt]]= if x<=a then jointree.[xs,[totree1.[Temp.x.y,Node.(It.a).lt.rt]]] else if x>a then jointree.[xs,[totree2.[Temp.x.y,Node.(It.a).lt.rt]]] else jointree.[(Node.(It.a).lt.rt::xs),[Node.(It.a).lt.rt]]
+
+
+-----**function to form tree**-----
+
+maintree.l = jointree.[drop2.l,[totree.l]]
+
+
+
+----------tree to list of tuples [(address,character)]--------------------------------------------------------------------------------
+
+treeadd.l = tadd.(maintree.l)
+tadd.(Ct.x) = [("1",x)]
+tadd.(Node.(It.x).(Ct.y).(Ct.z))=[("0",y),("1",z)]
+tadd.(Node.(It.x).(Node.(It.y).(Ct.a).(Ct.b)).(Ct.c))=[("00",a),("01",b),("1",c)]
+tadd.(Node.(It.x).(Ct.a).(Node.(It.z).(Ct.b).(Ct.c)))=[("0",a),("10",b),("11",c)]
+tadd.(Node.(It.x).lt.rt)=[]++ map.(\(a,b)->('0'::a,b)).(tadd.lt) ++ map.(\(a,b)->('1'::a,b)).(tadd.rt)
+
+
+----------Encoding the given string-----------------------------------------------------------------------------------------------------------------------
+
+
+addofst.l = sttobin.l.(treeadd.l)
+
+sttobin.l.m = sttobin1.l.m.[]
+sttobin1.[].xs.zs=zs
+sttobin1.(x::xs).((m,n)::ms).zs = if x==n then sttobin1.xs.((m,n)::ms).(zs++m) else sttobin1.(x::xs).(ms++[(m,n)]).zs
+
+
+add0.l.0 = l
+add0.l.n = add0.(l++['0']).(n-1)
+
+pairof7.(x::xs).zs.0 = zs
+pairof7.[].zs.0 = zs
+pairof7.[].zs.n = add0.zs.n
+pairof7.(x::xs).zs.n = pairof7.xs.(zs++[x]).(n-1)
+
+drop7.(x::xs).0 = (x::xs)
+drop7.[].n = []
+drop7.(x::xs).n = drop7.xs.(n-1)
+
+stlist.[] = []
+stlist.(x::xs) = (pairof7.(x::xs).[].7)::stlist.(drop7.(x::xs).7)
+
+todec.[]=0
+todec.(x::xs)=(ord.x-48)*2^(length.(x::xs)-1)+todec.xs
+
+btochar.[]=[]
+btochar.(x::xs)=chr.(todec.x)::btochar.xs
+
+
+---------**main compresser function**------------------
+
+huffmanzip.[]=[]
+huffmanzip.l=btochar.(stlist.(addofst.l))
+
+
+
+-----------**Decoding**-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+encodebin.l = tobinary.(huffmanzip.l)
+
+ogbin.l = take.(cbin.(addofst.l)).(encodebin.l)
+
+cbin.[]=0
+cbin.(x::xs) = 1+cbin.xs 
+
+ctobin.0=[]
+ctobin.c=chr.(mod.c.(2)+48)::ctobin.(c/2)
+
+tobinary.[]=[]
+tobinary.(x::xs)=reverse.(add0.(ctobin.(ord.x)).(7-length.(ctobin.(ord.x))))++tobinary.xs
+
+check1.[].y=False
+check1.((x,z)::xs).y= if (x==y) then True else check1.xs.y
+
+checknext.x.((y,z)::ys)= if (x==y) then z else checknext.x.ys
+
+compare.l.m = check.l.m.1
+check.[].l.n=[]
+check.l.m.n = if (check1.m.(take.n.l)) then checknext.(take.n.l).m :: check.(drop.n.l).m.1 else check.l.m.(n+1)
+
+
+
+--**main huffman function** to compress the string and returning the original string by decoding the compressed one-------------
+ 
+huffmanunzip.l = compare.(ogbin.l).(treeadd.l)
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
